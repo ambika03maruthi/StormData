@@ -1,0 +1,98 @@
+---
+title: "Course Project 2- Stormdata.RMD"
+output: html_document
+---
+#Synopsys 
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+##Assignment 
+The basic goal of this assignment is to explore the NOAA Storm Database and answer some basic questions about severe weather events. We must use the database to answer the questions below and show the code for our entire analysis. Our analysis can consist of tables, figures, or other summaries. We may use any R package we want to support our analysis.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Data Processing
+```{r}
+#Downloading file
+if(!file.exists("stormData.csv.bz2")) {
+  download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",
+  destfile = "stormData.csv.bz2", method = "curl")
+}
+```
+
+```{r}
+#loading data
+NOAAStormdata<-read.csv("stormData.csv.bz2")
+```
+
+subset the required columns 
+```{r}
+#colnames(NOAAStormdata)
+#subsetted colums indicate the effects of event-types
+ReqNOAA<-NOAAStormdata[,c('EVTYPE','FATALITIES','INJURIES', 'PROPDMG', 'PROPDMGEXP', 'CROPDMG', 'CROPDMGEXP')]
+```
+
+
+```{r}
+#Converting H K M B of PROPDMGEXP to units
+ReqNOAA$PROPDMGNUM=0
+ReqNOAA[ReqNOAA$PROPDMGEXP=="H", ]$PROPDMGNUM = ReqNOAA[ReqNOAA$PROPDMGEXP == "H", ]$PROPDMG * 10^2
+ReqNOAA[ReqNOAA$PROPDMGEXP=="K", ]$PROPDMGNUM = ReqNOAA[ReqNOAA$PROPDMGEXP == "K", ]$PROPDMG * 10^3
+ReqNOAA[ReqNOAA$PROPDMGEXP=="M", ]$PROPDMGNUM = ReqNOAA[ReqNOAA$PROPDMGEXP == "M", ]$PROPDMG * 10^6
+ReqNOAA[ReqNOAA$PROPDMGEXP=="B", ]$PROPDMGNUM = ReqNOAA[ReqNOAA$PROPDMGEXP == "B", ]$PROPDMG * 10^9
+```
+
+
+```{r}
+#Converting H K M B of CROPDMGEXP units
+ReqNOAA$CROPDMGNUM=0
+ReqNOAA[ReqNOAA$CROPDMGEXP=="H",]$CROPDMGNUM=ReqNOAA[ReqNOAA$CROPDMGEXP=="H",]$CROPDMG * 10^2
+ReqNOAA[ReqNOAA$CROPDMGEXP=="K",]$CROPDMGNUM=ReqNOAA[ReqNOAA$CROPDMGEXP=="K",]$CROPDMG * 10^3
+ReqNOAA[ReqNOAA$CROPDMGEXP=="M",]$CROPDMGNUM=ReqNOAA[ReqNOAA$CROPDMGEXP=="M",]$CROPDMG * 10^6
+ReqNOAA[ReqNOAA$CROPDMGEXP=="B",]$CROPDMGNUM=ReqNOAA[ReqNOAA$CROPDMGEXP=="B",]$CROPDMG * 10^9
+```
+###Results
+1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+```{r}
+#plotting no of fatalities according to Event Types
+library(ggplot2)
+fatalities<-aggregate(FATALITIES ~ EVTYPE, data=ReqNOAA, sum)
+fatalities<-fatalities[order(-fatalities$FATALITIES), ][1:20, ]
+fatalities$EVTYPE<-factor(fatalities$EVTYPE, levels = fatalities$EVTYPE)
+
+ggplot(fatalities, aes(x = EVTYPE, y = FATALITIES)) + 
+    geom_bar(stat = "identity", fill="salmon") + theme(axis.text.x = element_text(angle = 75, hjust = 1)) + 
+    xlab("Event Type") + ylab("Fatalities") + ggtitle("No of fatalities by top 20 Weather Events")
+```
+
+```{r}
+library(ggplot2)
+#aggregating injuries
+injuries <- aggregate(INJURIES ~ EVTYPE, data=ReqNOAA, sum)
+injuries <- injuries[order(-injuries$INJURIES), ][1:20, ]
+injuries$EVTYPE <- factor(injuries$EVTYPE, levels = injuries$EVTYPE)
+
+##plotting no of injuries according to Event Types
+ggplot(injuries, aes(x = EVTYPE, y = INJURIES)) + geom_bar(stat = "identity", fill="purple") + 
+  theme(axis.text.x = element_text(angle = 70, hjust = 1)) + 
+    xlab("Event Type") + ylab("Injuries") + ggtitle("No of injuries by top 20 Weather Events")
+```
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+```{r}
+library(ggplot2)
+#aggregating property and crop damages
+damages<-aggregate(PROPDMGNUM + CROPDMGNUM ~ EVTYPE, data=ReqNOAA, sum)
+names(damages)=c("EVTYPE", "TOTALDAMAGE")
+damages<-damages[order(-damages$TOTALDAMAGE), ][1:20, ]
+damages$EVTYPE<-factor(damages$EVTYPE, levels = damages$EVTYPE)
+
+#plot
+ggplot(damages, aes(x = EVTYPE, y = TOTALDAMAGE)) + 
+    geom_bar(stat = "identity", fill="skyblue") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    xlab("Event Type") + ylab("Damages in $") + ggtitle("Property & Crop Damages by top 20 Weather Events")
+```
+
